@@ -1,0 +1,124 @@
+{
+  "Comment": "An example of using Bedrock to chain prompts and their responses together.",
+  "StartAt": "Saudacao Cliente",
+  "States": {
+    "Saudacao Cliente": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::bedrock:invokeModel",
+      "Parameters": {
+        "ModelId": "arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-3-haiku-20240307-v1:0",
+        "Body": {
+          "anthropic_version": "bedrock-2023-05-31",
+          "max_tokens": 200,
+          "messages": [
+            {
+              "role": "user",
+              "content": "Saúde no cliente com um boa noite e peça para ele falar o seu gosto"
+            }
+          ]
+        }
+      },
+      "Next": "Digite Seu Pedido",
+      "ResultPath": "$.result_saudacao",
+      "ResultSelector": {
+        "text_saudacao.$": "$.Body.generations[0].text"
+      }
+    },
+    "Digite Seu Pedido": {
+      "Type": "Pass",
+      "Next": "Pedido Cliente",
+      "Parameters": {
+        "historico.$": "States.Format('{}', $.result_saudacao.text_saudacao)"
+      },
+      "ResultPath": "$.historico"
+    },
+    "Pedido Cliente": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::bedrock:invokeModel",
+      "Parameters": {
+        "ModelId": "arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-3-haiku-20240307-v1:0",
+        "Body": {
+          "anthropic_version": "bedrock-2023-05-31",
+          "max_tokens": 200,
+          "messages": [
+            {
+              "role": "user",
+              "content": "Estou planejando um jantar com minha namorada e ela gosta de mussarela, calabresa, strogonoff, azeitona, ovo, parmesão, picles, pimenta e frango"
+            }
+          ]
+        },
+        "ContentType": "application/json",
+        "Accept": "*/*"
+      },
+      "Next": "Adicionar Historico Pedido",
+      "ResultPath": "$.result_pedido",
+      "ResultSelector": {
+        "text_pedido.$": "$.Body.generations[0].text"
+      }
+    },
+    "Adicionar Historico Pedido": {
+      "Type": "Pass",
+      "Next": "Sugestao Queijos",
+      "Parameters": {
+        "historico.$": "States.Format('{}\n{}', $.historico, $.result_pedido.text_pedido)"
+      },
+      "ResultPath": "$.historico"
+    },
+    "Sugestao Queijos": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::bedrock:invokeModel",
+      "Parameters": {
+        "ModelId": "arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-3-haiku-20240307-v1:0",
+        "Body": {
+          "anthropic_version": "bedrock-2023-05-31",
+          "max_tokens": 200,
+          "messages": [
+            {
+              "role": "user",
+              "content": "liste os sabores de pizza que posso fazer com os elementos que ela gosta"
+            }
+          ]
+        },
+        "ContentType": "application/json",
+        "Accept": "*/*"
+      },
+      "Next": "Adicionar Historico Queijos",
+      "ResultPath": "$.result_queijos",
+      "ResultSelector": {
+        "text_queijos.$": "$.Body.generations[0].text"
+      }
+    },
+    "Adicionar Historico Queijos": {
+      "Type": "Pass",
+      "Next": "Final Prompt",
+      "Parameters": {
+        "historico.$": "States.Format('{}\n{}', $.historico, $.result_queijos.text_queijos)"
+      },
+      "ResultPath": "$.historico"
+    },
+    "Final Prompt": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::bedrock:invokeModel",
+      "Parameters": {
+        "ModelId": "arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-3-haiku-20240307-v1:0",
+        "Body": {
+          "anthropic_version": "bedrock-2023-05-31",
+          "max_tokens": 200,
+          "messages": [
+            {
+              "role": "user",
+              "content": "Recomende uma bebida com a pizza escolhida."
+            }
+          ]
+        },
+        "ContentType": "application/json",
+        "Accept": "*/*"
+      },
+      "End": true,
+      "ResultPath": "$.result_final",
+      "ResultSelector": {
+        "text_final.$": "$.Body.generations[0].text"
+      }
+    }
+  }
+}
